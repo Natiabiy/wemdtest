@@ -5,14 +5,21 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { JWT_SECRET } = require('../config/config');
 
-const HASURA_GRAPHQL_URL = 'http://graphql-engine:8080/v1/graphql';
+const HASURA_GRAPHQL_URL = 'http://localhost:8080/v1/graphql';
 const HASURA_ADMIN_SECRET = 'myadminsecretkey';
 
 // SIGNUP CONTROLLER
 exports.signup = async (req, res) => {
   const { name, email, password } = req.body;
+ 
+ 
+  // Validation check: Ensure all required fields are provided
+  if (!name || !email || !password) {
+    return res.status(400).json({ message: 'All fields (name, email, password) are required.' });
+  }
+
   try {
-    // Hash the user's password
+    // Hash the user's password with bcrypt using 12 salt rounds
     const hashedPassword = await bcrypt.hash(password, 12);
 
     // GraphQL mutation to insert a user
@@ -31,7 +38,7 @@ exports.signup = async (req, res) => {
       HASURA_GRAPHQL_URL,
       {
         query: mutation,
-        variables: { name, email, password: hashedPassword }
+        variables: { name, email, password: hashedPassword } // Use the hashed password here
       },
       {
         headers: {
@@ -45,7 +52,7 @@ exports.signup = async (req, res) => {
       return res.status(400).json({ message: 'Hasura error', errors: response.data.errors });
     }
 
-    const user = response.data.data?.insert_users_one;
+    const user = response.data.data?.insert_Users_one;
 
     // Ensure user was successfully created
     if (!user) {
@@ -97,7 +104,7 @@ exports.login = async (req, res) => {
       return res.status(400).json({ message: 'Hasura error', errors: response.data.errors });
     }
 
-    const user = response.data.data?.users[0];
+    const user = response.data.data?.Users[0]; // Check for the user in the response
 
     // Check if user exists
     if (!user) {
@@ -105,7 +112,7 @@ exports.login = async (req, res) => {
     }
 
     // Compare password with hashed password in the database
-    const isMatch = await bcrypt.compare(password, user.password);
+    const isMatch = await bcrypt.compare(password, user.password); // Compare the password correctly
 
     if (!isMatch) {
       return res.status(401).json({ message: 'Invalid credentials' });

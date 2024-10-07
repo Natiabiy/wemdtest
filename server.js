@@ -12,10 +12,7 @@ process.on('uncaughtException', function (err) {
   
 app.use(express.static('public'));
 
-// Serve the signup form
-app.get('/signup', (req, res) => {
-  res.sendFile('/public/signup.html');
-});
+
 
 // Routes
 app.use('/api/auth', authRoutes);
