@@ -6,6 +6,11 @@ const app = express();
 
 app.use(express.json());
 
+process.on('uncaughtException', function (err) {
+    console.log(err);
+  });
+  
+
 // Routes
 app.use('/api/auth', authRoutes);
 

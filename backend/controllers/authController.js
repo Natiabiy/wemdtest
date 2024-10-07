@@ -5,7 +5,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { JWT_SECRET } = require('../config/config');
 
-const HASURA_GRAPHQL_URL = 'http://localhost:8080/v1/graphql';
+const HASURA_GRAPHQL_URL = 'http://graphql-engine:8080/v1/graphql';
 const HASURA_ADMIN_SECRET = 'myadminsecretkey';
 
 // SIGNUP CONTROLLER
@@ -18,7 +18,7 @@ exports.signup = async (req, res) => {
     // GraphQL mutation to insert a user
     const mutation = `
       mutation ($name: String!, $email: String!, $password: String!) {
-        insert_users_one(object: {name: $name, email: $email, password: $password}) {
+        insert_Users_one(object: {name: $name, email: $email, password: $password}) {
           id
           name
           email
@@ -40,7 +40,17 @@ exports.signup = async (req, res) => {
       }
     );
 
-    const user = response.data.data.insert_users_one;
+    // Check if Hasura returned any errors
+    if (response.data.errors) {
+      return res.status(400).json({ message: 'Hasura error', errors: response.data.errors });
+    }
+
+    const user = response.data.data?.insert_users_one;
+
+    // Ensure user was successfully created
+    if (!user) {
+      return res.status(400).json({ message: 'Failed to create user' });
+    }
 
     // Generate JWT token
     const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, { expiresIn: '1h' });
@@ -60,7 +70,7 @@ exports.login = async (req, res) => {
     // GraphQL query to fetch user by email
     const query = `
       query ($email: String!) {
-        users(where: {email: {_eq: $email}}) {
+        Users(where: {email: {_eq: $email}}) {
           id
           name
           email
@@ -82,8 +92,14 @@ exports.login = async (req, res) => {
       }
     );
 
-    const user = response.data.data.users[0];
+    // Check if Hasura returned any errors
+    if (response.data.errors) {
+      return res.status(400).json({ message: 'Hasura error', errors: response.data.errors });
+    }
 
+    const user = response.data.data?.users[0];
+
+    // Check if user exists
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
