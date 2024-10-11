@@ -10,19 +10,19 @@ const HASURA_ADMIN_SECRET = 'myadminsecretkey';
 
 // SIGNUP CONTROLLER
 exports.signup = async (req, res) => {
-  const { name, email, password } = req.body;
+  const { first_name, middle_name, last_name, email, password, phone_no, gender, DOB, country, city, user_type } = req.body;
 
   // Validation check: Ensure all required fields are provided
-  if (!name || !email || !password) {
-    return res.status(400).json({ message: 'All fields (name, email, password) are required.' });
+  if (!first_name || !last_name || !email || !password || !phone_no || !gender || !DOB || !country || !city || !user_type) {
+    return res.status(400).json({ message: 'All fields are required.' });
   }
 
   try {
     // Check if a user with the given email already exists
     const checkUserQuery = `
       query ($email: String!) {
-        Users(where: {email: {_eq: $email}}) {
-          id
+        user(where: {email: {_eq: $email}}) {
+          user_id
           email
         }
       }
@@ -41,7 +41,7 @@ exports.signup = async (req, res) => {
       }
     );
 
-    const existingUser = checkUserResponse.data.data?.Users[0];
+    const existingUser = checkUserResponse.data.data?.user[0];
 
     // If a user with the given email exists, return an error
     if (existingUser) {
@@ -53,10 +53,11 @@ exports.signup = async (req, res) => {
 
     // GraphQL mutation to insert a new user
     const mutation = `
-      mutation ($name: String!, $email: String!, $password: String!) {
-        insert_Users_one(object: {name: $name, email: $email, password: $password}) {
-          id
-          name
+      mutation ($first_name: String!, $middle_name: String, $last_name: String!, $email: String!, $password: String!, $phone_no: String!, $gender: String!, $DOB: date!, $country: String!, $city: String!, $user_type: String!) {
+        insert_user_one(object: {first_name: $first_name, middle_name: $middle_name, last_name: $last_name, email: $email, password: $password, phone_no: $phone_no, gender: $gender, DOB: $DOB, country: $country, city: $city, user_type: $user_type}) {
+          user_id
+          first_name
+          last_name
           email
         }
       }
@@ -67,7 +68,7 @@ exports.signup = async (req, res) => {
       HASURA_GRAPHQL_URL,
       {
         query: mutation,
-        variables: { name, email, password: hashedPassword } // Use the hashed password here
+        variables: { first_name, middle_name, last_name, email, password: hashedPassword, phone_no, gender, DOB, country, city, user_type }
       },
       {
         headers: {
@@ -81,7 +82,7 @@ exports.signup = async (req, res) => {
       return res.status(400).json({ message: 'Hasura error', errors: response.data.errors });
     }
 
-    const user = response.data.data?.insert_Users_one;
+    const user = response.data.data?.insert_user_one;
 
     // Ensure user was successfully created
     if (!user) {
@@ -89,7 +90,7 @@ exports.signup = async (req, res) => {
     }
 
     // Generate JWT token
-    const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, { expiresIn: '1h' });
+    const token = jwt.sign({ id: user.user_id, email: user.email }, JWT_SECRET, { expiresIn: '1h' });
 
     res.status(201).json({ token });
   } catch (error) {
@@ -97,7 +98,6 @@ exports.signup = async (req, res) => {
     res.status(500).json({ message: 'Error creating user' });
   }
 };
-
 
 // LOGIN CONTROLLER
 exports.login = async (req, res) => {
@@ -107,9 +107,10 @@ exports.login = async (req, res) => {
     // GraphQL query to fetch user by email
     const query = `
       query ($email: String!) {
-        Users(where: {email: {_eq: $email}}) {
-          id
-          name
+        user(where: {email: {_eq: $email}}) {
+          user_id
+          first_name
+          last_name
           email
           password
         }
@@ -134,7 +135,7 @@ exports.login = async (req, res) => {
       return res.status(400).json({ message: 'Hasura error', errors: response.data.errors });
     }
 
-    const user = response.data.data?.Users[0]; // Check for the user in the response
+    const user = response.data.data?.user[0]; // Check for the user in the response
 
     // Check if user exists
     if (!user) {
@@ -149,7 +150,7 @@ exports.login = async (req, res) => {
     }
 
     // Generate JWT token
-    const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, { expiresIn: '1h' });
+    const token = jwt.sign({ id: user.user_id, email: user.email }, JWT_SECRET, { expiresIn: '1h' });
 
     res.status(200).json({ token });
   } catch (error) {
