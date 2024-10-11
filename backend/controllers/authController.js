@@ -11,18 +11,47 @@ const HASURA_ADMIN_SECRET = 'myadminsecretkey';
 // SIGNUP CONTROLLER
 exports.signup = async (req, res) => {
   const { name, email, password } = req.body;
- 
- 
+
   // Validation check: Ensure all required fields are provided
   if (!name || !email || !password) {
     return res.status(400).json({ message: 'All fields (name, email, password) are required.' });
   }
 
   try {
+    // Check if a user with the given email already exists
+    const checkUserQuery = `
+      query ($email: String!) {
+        Users(where: {email: {_eq: $email}}) {
+          id
+          email
+        }
+      }
+    `;
+
+    const checkUserResponse = await axios.post(
+      HASURA_GRAPHQL_URL,
+      {
+        query: checkUserQuery,
+        variables: { email }
+      },
+      {
+        headers: {
+          'x-hasura-admin-secret': HASURA_ADMIN_SECRET,
+        }
+      }
+    );
+
+    const existingUser = checkUserResponse.data.data?.Users[0];
+
+    // If a user with the given email exists, return an error
+    if (existingUser) {
+      return res.status(400).json({ message: 'Email is already in use.' });
+    }
+
     // Hash the user's password with bcrypt using 12 salt rounds
     const hashedPassword = await bcrypt.hash(password, 12);
 
-    // GraphQL mutation to insert a user
+    // GraphQL mutation to insert a new user
     const mutation = `
       mutation ($name: String!, $email: String!, $password: String!) {
         insert_Users_one(object: {name: $name, email: $email, password: $password}) {
@@ -68,6 +97,7 @@ exports.signup = async (req, res) => {
     res.status(500).json({ message: 'Error creating user' });
   }
 };
+
 
 // LOGIN CONTROLLER
 exports.login = async (req, res) => {

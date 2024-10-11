@@ -1,6 +1,6 @@
 // routes/authRoutes.js
 const express = require('express');
-const authController = require('../controllers/authController');
+const forgotPasswordController = require('../controllers/forgotPasswordController');
 const authMiddleware = require('../middleware/authMiddleware');
 
 const router = express.Router();
@@ -10,6 +10,11 @@ router.post('/login', authController.login);
 router.get('/signup', (req, res) => {
   res.sendFile('C:/Users/Administrator/hasura_101/public/signup.html');
 });
+
+// routes for forgot password
+router.post('/forgotPassword', forgotPasswordController.forgotPassword);
+router.post('/resetPassword/:token', forgotPasswordController.resetPassword);
+
 
 
 // Protect this route with authMiddleware
