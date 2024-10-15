@@ -8,12 +8,15 @@ const { JWT_SECRET } = require('../config/config');
 const HASURA_GRAPHQL_URL = 'http://localhost:8080/v1/graphql';
 const HASURA_ADMIN_SECRET = 'myadminsecretkey';
 
+const createdAt = new Date().toISOString();
+
+
 // SIGNUP CONTROLLER
 exports.signup = async (req, res) => {
-  const { first_name, middle_name, last_name, email, password, phone_no, gender, DOB, country, city, user_type } = req.body;
+  const { first_name, middle_name, last_name, email, password, phone_no, gender, dob, country, city, user_type } = req.body;
 
   // Validation check: Ensure all required fields are provided
-  if (!first_name || !last_name || !email || !password || !phone_no || !gender || !DOB || !country || !city || !user_type) {
+  if (!first_name || !last_name || !email || !password || !phone_no || !gender || !dob || !country || !city || !user_type) {
     return res.status(400).json({ message: 'All fields are required.' });
   }
 
@@ -51,24 +54,83 @@ exports.signup = async (req, res) => {
     // Hash the user's password with bcrypt using 12 salt rounds
     const hashedPassword = await bcrypt.hash(password, 12);
 
-    // GraphQL mutation to insert a new user
-    const mutation = `
-      mutation ($first_name: String!, $middle_name: String, $last_name: String!, $email: String!, $password: String!, $phone_no: String!, $gender: String!, $DOB: date!, $country: String!, $city: String!, $user_type: String!) {
-        insert_user_one(object: {first_name: $first_name, middle_name: $middle_name, last_name: $last_name, email: $email, password: $password, phone_no: $phone_no, gender: $gender, DOB: $DOB, country: $country, city: $city, user_type: $user_type}) {
-          user_id
-          first_name
-          last_name
-          email
-        }
-      }
-    `;
+   // GraphQL mutation to insert a new user, sending created_at explicitly
+   const mutation = `
+   mutation ($first_name: String!, $middle_name: String, $last_name: String!, $email: String!, $password: String!, $phone_no: String!, $gender: String!, $dob: date!, $country: String!, $city: String!, $user_type: String!) {
+     insert_user_one(object: {
+       first_name: $first_name,
+       middle_name: $middle_name,
+       last_name: $last_name,
+       email: $email,
+       password: $password,
+       phone_no: $phone_no,
+       gender: $gender,
+       dob: $dob,
+       country: $country,
+       city: $city,
+       user_type: $user_type
+     }) {
+       user_id
+       first_name
+       last_name
+       email
+       created_at
+     }
+   }
+ `;
+ 
+
+// In the variables passed to the mutation, include created_at
+const variables = {
+first_name,
+middle_name,
+last_name,
+email,
+password: hashedPassword,
+phone_no,
+gender,
+dob,
+country,
+city,
+user_type,
+created_at: createdAt // Send the generated timestamp
+};
+
+    // Log the mutation and variables for debugging
+    console.log("GraphQL Mutation:", mutation);
+    console.log("Variables:", { 
+      first_name, 
+      middle_name, 
+      last_name, 
+      email, 
+      password: hashedPassword, 
+      phone_no, 
+      gender, 
+      dob, 
+      country, 
+      city, 
+      user_type 
+    });
 
     // Send GraphQL mutation to Hasura
     const response = await axios.post(
       HASURA_GRAPHQL_URL,
       {
         query: mutation,
-        variables: { first_name, middle_name, last_name, email, password: hashedPassword, phone_no, gender, DOB, country, city, user_type }
+        variables: { 
+          first_name, 
+          middle_name, 
+          last_name, 
+          email, 
+          password: hashedPassword, 
+          phone_no, 
+          gender, 
+          dob, 
+          country, 
+          city, 
+          user_type,
+          
+        }
       },
       {
         headers: {
@@ -94,12 +156,12 @@ exports.signup = async (req, res) => {
 
     res.status(201).json({ token });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Error creating user' });
+    console.error('Error:', error);
+    res.status(500).json({ message: 'Error creating user', error: error.message });
   }
 };
 
-// LOGIN CONTROLLER
+// LOGIN CONTROLLER (no changes)
 exports.login = async (req, res) => {
   const { email, password } = req.body;
 
